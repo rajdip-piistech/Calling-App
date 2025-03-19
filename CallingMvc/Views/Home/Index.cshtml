@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Chat and Video Call</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        #chat {
+            margin-bottom: 20px;
+        }
+        #messages {
+            list-style-type: none;
+            padding: 0;
+        }
+        #messages li {
+            padding: 8px;
+            background-color: #f1f1f1;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        #video-call {
+            display: flex;
+            justify-content: space-between;
+        }
+        video {
+            width: 45%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Live Chat, Video Call, and Screen Share</h1>
+
+        <!-- Display Peer ID -->
+        <div id="peerIdDisplay" class="alert alert-info"></div>
+
+        <!-- Chat Section -->
+        <div id="chat">
+            <ul id="messages"></ul>
+            <input type="text" id="messageInput" placeholder="Type a message..." class="form-control" />
+            <button id="sendButton" class="btn btn-primary mt-2">Send</button>
+        </div>
+
+        <!-- Video Call Section -->
+        <div id="video-call">
+            <video id="localVideo" autoplay muted></video>
+            <div id="remoteVideosContainer"></div>
+        </div>
+        <button id="callButton" class="btn btn-success mt-2">Call</button>
+        <button id="hangupButton" class="btn btn-danger mt-2" disabled>Hang Up</button>
+        <button id="screenShareButton" class="btn btn-warning mt-2">Share Screen</button>
+        <button id="muteButton" class="btn btn-secondary mt-2">Mute</button>
+        <button id="videoOffButton" class="btn btn-secondary mt-2">Turn Video Off</button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="~/js/chat.js"></script>
+    <script src="~/js/peer.js"></script>
+</body>
+</html>
