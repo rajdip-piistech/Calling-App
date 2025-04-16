@@ -7,20 +7,25 @@
         #chat {
             margin-bottom: 20px;
         }
+
         #messages {
             list-style-type: none;
             padding: 0;
         }
-        #messages li {
-            padding: 8px;
-            background-color: #f1f1f1;
-            margin-bottom: 5px;
-            border-radius: 4px;
-        }
+
+            #messages li {
+                padding: 8px;
+                background-color: #f1f1f1;
+                margin-bottom: 5px;
+                border-radius: 4px;
+            }
+
         #video-call {
             display: flex;
             justify-content: space-between;
+            flex-wrap: wrap;
         }
+
         video {
             width: 45%;
             border: 1px solid #ccc;
@@ -33,7 +38,7 @@
         <h1>Live Chat, Video Call, and Screen Share</h1>
 
         <!-- Display Peer ID -->
-        <div id="peerIdDisplay" class="alert alert-info"></div>
+        <div id="peerIdDisplay" class="alert alert-info">Connecting...</div>
 
         <!-- Chat Section -->
         <div id="chat">
@@ -57,7 +62,144 @@
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <script src="~/js/chat.js"></script>
-    <script src="~/js/peer.js"></script>
+	<script src="~/js/chat.js"></script>
+    <script>
+        const localVideo = document.getElementById("localVideo");
+        const remoteVideosContainer = document.getElementById("remoteVideosContainer");
+        const callButton = document.getElementById("callButton");
+        const hangupButton = document.getElementById("hangupButton");
+        const screenShareButton = document.getElementById("screenShareButton");
+        const muteButton = document.getElementById("muteButton");
+        const videoOffButton = document.getElementById("videoOffButton");
+        const peerIdDisplay = document.getElementById("peerIdDisplay");
+
+        let localStream;
+        let remoteStreams = {};
+        let peer;
+        let connections = {};
+        let isMuted = false;
+        let isVideoOff = false;
+        let screenStream = null;
+
+        // ✅ Initialize PeerJS with default cloud server
+        peer = new Peer();
+
+        peer.on("open", function (id) {
+            console.log("My peer ID is: " + id);
+            peerIdDisplay.textContent = `Your Peer ID: ${id}`;
+        });
+
+        peer.on("error", function (err) {
+            console.error("PeerJS error:", err);
+            peerIdDisplay.textContent = `Error: ${err.type}`;
+        });
+
+        // ✅ Get local media (video and audio)
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localVideo.srcObject = stream;
+                localStream = stream;
+            })
+            .catch(error => {
+                console.error("Error accessing media devices:", error);
+            });
+
+        // ✅ Handle incoming calls
+        peer.on("call", incomingCall => {
+            incomingCall.answer(localStream);
+            incomingCall.on("stream", stream => {
+                const remoteVideo = document.createElement("video");
+                remoteVideo.srcObject = stream;
+                remoteVideo.autoplay = true;
+                remoteVideosContainer.appendChild(remoteVideo);
+                remoteStreams[incomingCall.peer] = remoteVideo;
+                hangupButton.disabled = false;
+            });
+        });
+
+        // ✅ Connect to multiple peers
+        callButton.addEventListener("click", function () {
+            const peerIds = prompt("Enter the peer IDs of the people you want to call (comma-separated):");
+            if (peerIds && localStream) {
+                peerIds.split(",").forEach(peerId => {
+                    const trimmedId = peerId.trim();
+                    const call = peer.call(trimmedId, localStream);
+                    call.on("stream", stream => {
+                        const remoteVideo = document.createElement("video");
+                        remoteVideo.srcObject = stream;
+                        remoteVideo.autoplay = true;
+                        remoteVideosContainer.appendChild(remoteVideo);
+                        remoteStreams[trimmedId] = remoteVideo;
+                        hangupButton.disabled = false;
+                    });
+                    connections[trimmedId] = call;
+                });
+            }
+        });
+
+        // ✅ Hang up all calls
+        hangupButton.addEventListener("click", function () {
+            Object.values(connections).forEach(call => call.close());
+            remoteVideosContainer.innerHTML = "";
+            remoteStreams = {};
+            connections = {};
+            hangupButton.disabled = true;
+        });
+
+        // ✅ Screen sharing
+        screenShareButton.addEventListener("click", function () {
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                localVideo.srcObject = localStream;
+                screenStream = null;
+                screenShareButton.textContent = "Share Screen";
+            } else {
+                navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+                    .then(stream => {
+                        screenStream = stream;
+                        localVideo.srcObject = screenStream;
+                        screenShareButton.textContent = "Stop Sharing";
+
+                        Object.values(connections).forEach(call => {
+                            call.peerConnection.getSenders().forEach(sender => {
+                                if (sender.track.kind === "video") {
+                                    sender.replaceTrack(screenStream.getVideoTracks()[0]);
+                                }
+                            });
+                        });
+
+                        screenStream.getVideoTracks()[0].onended = () => {
+                            localVideo.srcObject = localStream;
+                            screenStream = null;
+                            screenShareButton.textContent = "Share Screen";
+                        };
+                    })
+                    .catch(error => {
+                        console.error("Error sharing screen:", error);
+                    });
+            }
+        });
+
+        // ✅ Mute/unmute audio
+        muteButton.addEventListener("click", function () {
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                isMuted = !isMuted;
+                audioTracks[0].enabled = !isMuted;
+                muteButton.textContent = isMuted ? "Unmute" : "Mute";
+            }
+        });
+
+        // ✅ Turn video on/off
+        videoOffButton.addEventListener("click", function () {
+            const videoTracks = localStream.getVideoTracks();
+            if (videoTracks.length > 0) {
+                isVideoOff = !isVideoOff;
+                videoTracks[0].enabled = !isVideoOff;
+                videoOffButton.textContent = isVideoOff ? "Turn Video On" : "Turn Video Off";
+                localVideo.style.display = isVideoOff ? "none" : "block";
+            }
+        });
+    </script>
 </body>
 </html>
